@@ -156,3 +156,33 @@ if predict_btn:
             with col_m1:
                 st.metric(label="Predicción Principal", value=str(digit))
             with col_m2:
+                st.metric(label="Nivel de Confianza", value=f"{confidence:.1f}%")
+            with col_m3:
+                st.metric(label="Segunda Opción", value=str(alternative))
+            
+            st.markdown("---")
+            
+            st.write("### 🖼️ Transformación de la Imagen")
+            col_img1, col_img2 = st.columns(2)
+            
+            with col_img1:
+                st.write("**Tu dibujo original:**")
+                st.image(canvas_result.image_data, width=180)
+            
+            with col_img2:
+                st.write("**Entrada procesada (8x8):**")
+                st.image(image_resized.resize((150, 150), Image.Resampling.NEAREST))
+            
+            st.write("### 📊 Distribución de Probabilidades")
+            prob_df = pd.DataFrame({
+                'Dígito': [str(i) for i in range(10)],
+                'Probabilidad (%)': prediction_proba * 100
+            })
+            st.bar_chart(prob_df.set_index('Dígito'), color="#059669")
+            
+            with st.expander("🔍 Ver desglose detallado por dígito"):
+                for i, prob in enumerate(prediction_proba):
+                    emoji = "🎯 (Seleccionado)" if i == digit else ""
+                    st.write(f"**Dígito {i}**: {prob*100:.2f}% {emoji}")
+    else:
+        st.warning("⚠️ No se detectó información en el lienzo.", icon="⚠️")
