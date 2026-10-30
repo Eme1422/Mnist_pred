@@ -59,7 +59,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Panel de Control y Propiedades del Tablero en el Sidebar (Sin la imagen rota)
+# Panel de Control y Propiedades del Tablero en el Sidebar
 with st.sidebar:
     st.subheader("🛠️ Entorno Técnico")
     st.markdown(f"**Python:** `{platform.python_version()}`")
@@ -76,7 +76,7 @@ with st.sidebar:
     st.markdown("---")
     st.info("💡 **Tip:** Dibuja un número claro en el centro del recuadro para obtener una mejor predicción.")
 
-# Título y presentación (Sin el subtítulo largo)
+# Título y presentación
 st.title("✍️ Detección de Dígitos Escritos a Mano")
 st.markdown("---")
 
@@ -122,7 +122,7 @@ with col_controls:
 
 # Lógica de Predicción
 if predict_btn:
-    if canvas_result.image_data is not None:
+    if canvas_result is not None and getattr(canvas_result, 'image_data', None) is not None:
         if np.max(canvas_result.image_data) == 0:
             st.warning("⚠️ Por favor, dibuja un dígito en el lienzo antes de presionar predecir.", icon="⚠️")
         else:
@@ -185,4 +185,4 @@ if predict_btn:
                     emoji = "🎯 (Seleccionado)" if i == digit else ""
                     st.write(f"**Dígito {i}**: {prob*100:.2f}% {emoji}")
     else:
-        st.warning("⚠️ No se detectó información en el lienzo.", icon="⚠️")
+        st.warning("⚠️ No se detectó información en el lienzo o el componente aún está cargando.", icon="⚠️")
