@@ -1,13 +1,13 @@
 import streamlit as st
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 from streamlit_drawable_canvas import st_canvas
 import pandas as pd
 import platform
 from sklearn.neural_network import MLPClassifier
 from sklearn.datasets import load_digits
 
-# Configuración de la página (Debe ser el primer comando de Streamlit)
+# Configuración de la página
 st.set_page_config(
     page_title="Detector de Dígitos MNIST",
     page_icon="✍️",
@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilos CSS personalizados con paleta de tonos verdes
+# Estilos CSS personalizados
 st.markdown("""
     <style>
     .stApp {
@@ -59,7 +59,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Panel de Control y Propiedades del Tablero en el Sidebar
+# Panel de Control en el Sidebar
 with st.sidebar:
     st.subheader("🛠️ Entorno Técnico")
     st.markdown(f"**Python:** `{platform.python_version()}`")
@@ -74,19 +74,19 @@ with st.sidebar:
     canvas_size = st.slider("Tamaño del Lienzo (px)", min_value=200, max_value=400, value=300, step=50)
     
     st.markdown("---")
-    st.info("💡 **Tip:** Dibuja un número claro en el centro del recuadro para obtener una mejor predicción.")
+    st.info("💡 **Tip:** Dibuja un número claro y centrado. Si usas fondo negro con trazo blanco, asegúrate de rellenar bien el número.")
 
-# Título y presentación
+# Título
 st.title("✍️ Detección de Dígitos Escritos a Mano")
 st.markdown("---")
 
-# Cargar y entrenar un modelo optimizado en caché
+# Cargar modelo optimizado
 @st.cache_resource
 def load_optimized_model():
     digits = load_digits()
     X, y = digits.data, digits.target
     X = X / 16.0
-    clf = MLPClassifier(hidden_layer_sizes=(64,), max_iter=200, random_state=42, alpha=1e-4)
+    clf = MLPClassifier(hidden_layer_sizes=(64,), max_iter=300, random_state=42, alpha=1e-4)
     clf.fit(X, y)
     return clf
 
@@ -120,26 +120,35 @@ with col_controls:
     if clear_btn:
         st.rerun()
 
-# Lógica de Predicción
+# Lógica de Predicción Mejorada
 if predict_btn:
     if canvas_result is not None and getattr(canvas_result, 'image_data', None) is not None:
         if np.max(canvas_result.image_data) == 0:
             st.warning("⚠️ Por favor, dibuja un dígito en el lienzo antes de presionar predecir.", icon="⚠️")
         else:
-            with st.spinner("🤔 Analizando trazo..."):
-                image = Image.fromarray(
-                    canvas_result.image_data.astype("uint8")
-                ).convert("L")
+            with st.spinner("🤔 Analizando trazo con preprocesamiento avanzado..."):
+                # Convertir a imagen en escala de grises
+                image = Image.fromarray(canvas_result.image_data.astype("uint8")).convert("L")
                 
-                image_resized = image.resize((8, 8), Image.Resampling.LANCZOS)
-                img_array = np.array(image_resized, dtype=float)
-                
-                if bg_color == "#000000":
+                # Si el fondo es negro, invertimos para que el trazo sea blanco sobre fondo negro o viceversa según el dataset
+                # El dataset de scikit-learn (load_digits) tiene fondo negro (0) y números blancos/grises (hasta 16)
+                img_array = np.array(image, dtype=float)
+                if bg_color == "#FFFFFF":
+                    # Si dibujaste en fondo blanco con negro, invertimos
                     img_array = 255.0 - img_array
-                    
-                img_array = (img_array / 255.0) * 16.0
-                img_vector = img_array.reshape(1, -1)
                 
+                # Redimensionar a 8x8 asegurando alta calidad de muestreo
+                image_resized = Image.fromarray(img_array).resize((8, 8), Image.Resampling.LANCZOS)
+                img_array_8x8 = np.array(image_resized, dtype=float)
+                
+                # Normalizar los valores de los píxeles a la escala del dataset [0, 16]
+                if img_array_8x8.max() > 0:
+                    img_array_8x8 = (img_array_8x8 / img_array_8x8.max()) * 16.0
+                
+                # Aplanar a vector de 64 características
+                img_vector = img_array_8x8.reshape(1, -1)
+                
+                # Predicción
                 prediction_proba = model.predict_proba(img_vector)[0]
                 digit = int(np.argmax(prediction_proba))
                 confidence = float(np.max(prediction_proba) * 100)
