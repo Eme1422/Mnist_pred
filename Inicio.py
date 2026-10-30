@@ -71,13 +71,23 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Mostrar información y versiones en el sidebar
+# Panel de Control y Propiedades del Tablero en el Sidebar
 with st.sidebar:
-    st.image("https://img.icons8.com/clouds/100/bot.png", width=80)
+    st.image("https://img.icons8.com/clouds/100/bot.png", width=70)
     st.subheader("🛠️ Entorno Técnico")
     st.markdown(f"**TensorFlow:** `{tf.__version__}`")
     st.markdown(f"**Keras:** `{keras.__version__}`")
     st.markdown(f"**Python:** `{platform.python_version()}`")
+    
+    st.markdown("---")
+    st.subheader("🎨 Configuración del Tablero")
+    
+    # Propiedades configurables del canvas
+    stroke_width = st.slider("Grosor del Pincel", min_value=10, max_value=40, value=22, step=2)
+    stroke_color = st.color_picker("Color del Pincel", "#FFFFFF")
+    bg_color = st.color_picker("Color de Fondo", "#000000")
+    canvas_size = st.slider("Tamaño del Lienzo (px)", min_value=200, max_value=400, value=300, step=50)
+    
     st.markdown("---")
     st.info("💡 **Tip:** Dibuja un número claro en el centro del recuadro para obtener una mejor predicción.")
 
@@ -87,7 +97,7 @@ st.markdown("*Modelo CNN entrenado con el dataset MNIST optimizado con Inteligen
 
 st.markdown("---")
 
-# Cargar modelo con caché
+# Cargar modelo con caché optimizado para evitar retrasos
 @st.cache_resource
 def load_mnist_model():
     """Carga el modelo MNIST desde archivo .keras o .h5"""
@@ -96,12 +106,9 @@ def load_mnist_model():
     for model_path in model_files:
         if os.path.exists(model_path):
             try:
-                st.info(f"📂 Intentando cargar modelo desde: `{model_path}`")
                 model = keras.models.load_model(model_path)
-                st.success(f"✅ ¡Modelo cargado exitosamente!", icon="🎉")
                 return model
             except Exception as e:
-                st.error(f"❌ Error al cargar {model_path}: {str(e)}")
                 continue
     
     # Si no se encuentra el modelo
@@ -115,54 +122,29 @@ def load_mnist_model():
     """)
     st.stop()
 
-# Cargar modelo
-model = load_mnist_model()
+# Cargar modelo de forma eficiente
+with st.spinner("Cargando modelo neuronal..."):
+    model = load_mnist_model()
 
-st.markdown("### 🎨 Lienzo de Dibujo")
+st.markdown("### 🎨 Lienzo de Dibujo Interactivo")
 
 # Estructura principal en dos columnas
 col_canvas, col_controls = st.columns([1.2, 1], gap="large")
 
 with col_canvas:
-    st.write("Dibuja un dígito del **0 al 9** usando el ratón o tu dedo:")
+    st.write(f"Dibuja un dígito del **0 al 9**:")
+    # Se usan las propiedades personalizadas desde el panel lateral
     canvas_result = st_canvas(
-        fill_color="black",
-        stroke_width=22,
-        stroke_color="white",
-        background_color="black",
-        width=300,
-        height=300,
+        fill_color=bg_color,
+        stroke_width=stroke_width,
+        stroke_color=stroke_color,
+        background_color=bg_color,
+        width=canvas_size,
+        height=canvas_size,
         drawing_mode="freedraw",
         key="canvas",
     )
 
 with col_controls:
     st.write("### 🎮 Controles")
-    st.markdown("Presiona **Predecir** para analizar tu trazo o **Limpiar** para reiniciar el lienzo.")
-    
-    predict_btn = st.button("🔍 **Predecir Dígito**", type="primary", use_container_width=True)
-    clear_btn = st.button("🗑️ Limpiar Lienzo", use_container_width=True)
-    
-    if clear_btn:
-        st.rerun()
-
-# Lógica de Predicción
-if predict_btn:
-    if canvas_result.image_data is not None:
-        if np.max(canvas_result.image_data) == 0:
-            st.warning("⚠️ Por favor, dibuja un dígito en el lienzo antes de presionar predecir.", icon="⚠️")
-        else:
-            with st.spinner("🤔 Analizando trazo con la red neuronal..."):
-                # Procesar imagen
-                image = Image.fromarray(
-                    canvas_result.image_data.astype("uint8")
-                ).convert("L")
-                
-                image_resized = image.resize((28, 28), Image.Resampling.LANCZOS)
-                img_array = np.array(image_resized) / 255.0
-                img_array = img_array.reshape(1, 28, 28, 1)
-                
-                # Predicción
-                prediction = model.predict(img_array, verbose=0)
-                digit = np.argmax(prediction)
-                confidence = np.max(prediction) * 100
+    st.markdown("Presiona **Predecir Dígito** para analizar tu trazo o **Limpiar** para reiniciar el lienzo
